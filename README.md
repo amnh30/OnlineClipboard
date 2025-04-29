@@ -1,6 +1,6 @@
 # Dark Mode Text Editor with Auto-Save & RTL Support
 
-![Editor Screenshot](screenshot.png) <!-- Add a screenshot if available -->
+![Editor Screenshot](screenshot.PNG) <!-- Add a screenshot if available -->
 
 A feature-rich dark mode text editor with auto-save functionality and automatic right-to-left (RTL) text direction detection for Arabic content.
 
