@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Code-based Text Editor</title>
+    <title>Dark Mode Text Editor</title>
     <style>
         * {
             margin: 0;
@@ -34,7 +34,6 @@
         .toolbar {
             margin-bottom: 10px;
             display: flex;
-            flex-wrap: wrap;
             gap: 10px;
         }
 
@@ -50,14 +49,6 @@
 
         button:hover {
             background-color: #45a049;
-        }
-
-        input {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #444;
-            background-color: #333;
-            color: white;
         }
 
         #editor {
@@ -78,106 +69,149 @@
             color: #888;
         }
 
-        .code-display {
-            background-color: #333;
-            padding: 8px;
-            border-radius: 4px;
-            margin-top: 5px;
-            display: inline-block;
+        .history-container {
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .copy-btn {
-            background-color: #008CBA;
-            margin-left: 5px;
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .history-item {
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .history-item:hover {
+            background-color: #3d3d3d;
+        }
+
+        .history-item p {
+            margin: 5px 0;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .preview {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .timestamp {
+            color: #4CAF50;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Code-based Text Editor</h1>
         <div class="editor-container">
             <div class="toolbar">
-                <div class="save-section">
-                    <button onclick="saveContent()">Save</button>
-                    <div id="saveCode" class="code-display" style="display: none;">
-                        <span>Your code: </span>
-                        <strong id="codeDisplay"></strong>
-                        <button class="copy-btn" onclick="copyCode()">Copy</button>
-                    </div>
-                </div>
-                <div class="load-section">
-                    <input type="text" id="loadCode" placeholder="Enter code">
-                    <button onclick="loadContent()">Load</button>
-                </div>
+                <button onclick="saveDocument()">Save</button>
+                <button onclick="clearEditor()">Clear</button>
             </div>
             <textarea id="editor" placeholder="Start typing here..."></textarea>
-            <div class="status">
-                Character count: <span id="charCount">0</span>
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="history-container">
+            <div class="history-header">
+                <h2>Version History</h2>
+                <button onclick="deleteHistory()">Clear History</button>
             </div>
+            <div id="historyList"></div>
         </div>
     </div>
 
     <script>
         const editor = document.getElementById('editor');
-        const charCount = document.getElementById('charCount');
-        const codeDisplay = document.getElementById('codeDisplay');
-        const saveCodeSection = document.getElementById('saveCode');
-        const loadCodeInput = document.getElementById('loadCode');
-
-        // Generate random code
-        function generateCode() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        const status = document.getElementById('status');
+        
+        // Load saved content
+        const savedContent = localStorage.getItem('currentDocument');
+        if (savedContent) {
+            editor.value = savedContent;
         }
 
-        // Update character count
-        function updateCharCount() {
-            charCount.textContent = editor.value.length;
-        }
-
-        // Save content with code
-        function saveContent() {
+        function saveDocument() {
             const content = editor.value;
-            if (!content.trim()) {
-                alert('Cannot save empty content!');
-                return;
+            const timestamp = new Date().toLocaleString();
+            
+            // Save current document
+            localStorage.setItem('currentDocument', content);
+            
+            // Update status
+            status.textContent = `Last saved: ${timestamp}`;
+            
+            // Add to history
+            let history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
+            history.unshift({
+                content: content,
+                timestamp: timestamp,
+                preview: content.substring(0, 50)
+            });
+            
+            // Keep only last 10 versions
+            if (history.length > 10) {
+                history = history.slice(0, 10);
             }
             
-            const code = generateCode();
-            localStorage.setItem(code, content);
+            localStorage.setItem('documentHistory', JSON.stringify(history));
+            displayHistory();
+        }
+
+        function displayHistory() {
+            const historyList = document.getElementById('historyList');
+            const history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
             
-            codeDisplay.textContent = code;
-            saveCodeSection.style.display = 'inline-block';
-            alert(`Content saved with code: ${code}`);
+            historyList.innerHTML = history.map((entry, index) => `
+                <div class="history-item" onclick="loadVersion(${index})">
+                    <div class="timestamp">${entry.timestamp}</div>
+                    <p class="preview">${entry.preview}${entry.content.length > 50 ? '...' : ''}</p>
+                </div>
+            `).join('');
         }
 
-        // Load content with code
-        function loadContent() {
-            const code = loadCodeInput.value.trim().toUpperCase();
-            if (!code) {
-                alert('Please enter a code!');
-                return;
-            }
-
-            const content = localStorage.getItem(code);
-            if (content) {
-                editor.value = content;
-                updateCharCount();
-                alert('Content loaded successfully!');
-            } else {
-                alert('Invalid code! Content not found.');
+        function loadVersion(index) {
+            const history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
+            if (history[index]) {
+                editor.value = history[index].content;
+                status.textContent = `Loaded version from ${history[index].timestamp}`;
             }
         }
 
-        // Copy code to clipboard
-        function copyCode() {
-            const code = codeDisplay.textContent;
-            navigator.clipboard.writeText(code);
-            alert('Code copied to clipboard!');
+        function clearEditor() {
+            editor.value = '';
+            localStorage.removeItem('currentDocument');
+            status.textContent = 'Editor cleared';
         }
 
-        // Initialize editor
-        editor.addEventListener('input', updateCharCount);
-        window.onload = updateCharCount;
+        function deleteHistory() {
+            localStorage.removeItem('documentHistory');
+            displayHistory();
+            status.textContent = 'History cleared';
+        }
+
+        // Auto-save every 30 seconds
+        setInterval(saveDocument, 30000);
+
+        // Initial setup
+        displayHistory();
+        if (savedContent) {
+            status.textContent = 'Document loaded from local storage';
+        }
     </script>
 </body>
 </html>
