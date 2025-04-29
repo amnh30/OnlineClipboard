@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Text Editor</title>
+    <title>Code-based Text Editor</title>
     <style>
         * {
             margin: 0;
@@ -34,6 +34,7 @@
         .toolbar {
             margin-bottom: 10px;
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
         }
 
@@ -49,6 +50,14 @@
 
         button:hover {
             background-color: #45a049;
+        }
+
+        input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background-color: #333;
+            color: white;
         }
 
         #editor {
@@ -68,15 +77,38 @@
             font-size: 14px;
             color: #888;
         }
+
+        .code-display {
+            background-color: #333;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: inline-block;
+        }
+
+        .copy-btn {
+            background-color: #008CBA;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Online Text Editor</h1>
+        <h1>Code-based Text Editor</h1>
         <div class="editor-container">
             <div class="toolbar">
-                <button onclick="saveContent()">Save</button>
-                <button onclick="loadContent()">Load</button>
+                <div class="save-section">
+                    <button onclick="saveContent()">Save</button>
+                    <div id="saveCode" class="code-display" style="display: none;">
+                        <span>Your code: </span>
+                        <strong id="codeDisplay"></strong>
+                        <button class="copy-btn" onclick="copyCode()">Copy</button>
+                    </div>
+                </div>
+                <div class="load-section">
+                    <input type="text" id="loadCode" placeholder="Enter code">
+                    <button onclick="loadContent()">Load</button>
+                </div>
             </div>
             <textarea id="editor" placeholder="Start typing here..."></textarea>
             <div class="status">
@@ -86,45 +118,66 @@
     </div>
 
     <script>
-        // Initialize editor and load saved content
         const editor = document.getElementById('editor');
         const charCount = document.getElementById('charCount');
+        const codeDisplay = document.getElementById('codeDisplay');
+        const saveCodeSection = document.getElementById('saveCode');
+        const loadCodeInput = document.getElementById('loadCode');
 
-        // Load any saved content when page loads
-        window.onload = function() {
-            const savedContent = localStorage.getItem('editorContent');
-            if (savedContent) {
-                editor.value = savedContent;
-            }
-            updateCharCount();
+        // Generate random code
+        function generateCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
         }
 
-        // Update character count in real-time
-        editor.addEventListener('input', updateCharCount);
-
+        // Update character count
         function updateCharCount() {
-            const count = editor.value.length;
-            charCount.textContent = count;
+            charCount.textContent = editor.value.length;
         }
 
-        // Save content to localStorage
+        // Save content with code
         function saveContent() {
             const content = editor.value;
-            localStorage.setItem('editorContent', content);
-            alert('Content saved successfully!');
+            if (!content.trim()) {
+                alert('Cannot save empty content!');
+                return;
+            }
+            
+            const code = generateCode();
+            localStorage.setItem(code, content);
+            
+            codeDisplay.textContent = code;
+            saveCodeSection.style.display = 'inline-block';
+            alert(`Content saved with code: ${code}`);
         }
 
-        // Load content from localStorage
+        // Load content with code
         function loadContent() {
-            const savedContent = localStorage.getItem('editorContent');
-            if (savedContent) {
-                editor.value = savedContent;
+            const code = loadCodeInput.value.trim().toUpperCase();
+            if (!code) {
+                alert('Please enter a code!');
+                return;
+            }
+
+            const content = localStorage.getItem(code);
+            if (content) {
+                editor.value = content;
                 updateCharCount();
                 alert('Content loaded successfully!');
             } else {
-                alert('No saved content found!');
+                alert('Invalid code! Content not found.');
             }
         }
+
+        // Copy code to clipboard
+        function copyCode() {
+            const code = codeDisplay.textContent;
+            navigator.clipboard.writeText(code);
+            alert('Code copied to clipboard!');
+        }
+
+        // Initialize editor
+        editor.addEventListener('input', updateCharCount);
+        window.onload = updateCharCount;
     </script>
 </body>
 </html>
