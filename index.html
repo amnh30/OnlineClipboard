@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Mode Text Editor with Auto-Save</title>
+    <title>Dark Mode Text Editor with Smart Auto-Save</title>
     <style>
         * {
             margin: 0;
@@ -159,10 +159,10 @@
         const status = document.getElementById('status');
         const autoSaveToggle = document.getElementById('autoSaveToggle');
         
-        let autoSaveInterval = 5000; // 5 seconds
         let isDocumentEdited = false;
         let autoSaveEnabled = true;
-        let saveTimer;
+        let typingTimer;
+        const typingDelay = 10000; // 4 seconds after typing stops
 
         // Initialize the editor
         function initEditor() {
@@ -174,35 +174,42 @@
                 status.className = 'status saved';
             }
 
-            // Set up auto-save
-            setupAutoSave();
-            
             // Display history
             displayHistory();
+            
+            // Set up typing detection
+            setupTypingDetection();
         }
 
-        // Set up auto-save functionality
-        function setupAutoSave() {
-            if (saveTimer) clearInterval(saveTimer);
-            
-            if (autoSaveEnabled) {
-                saveTimer = setInterval(() => {
-                    if (isDocumentEdited) {
-                        saveDocument(true);
-                    }
-                }, autoSaveInterval);
-                autoSaveToggle.textContent = 'Auto-Save: ON';
-                autoSaveToggle.style.backgroundColor = '#4CAF50';
-            } else {
-                autoSaveToggle.textContent = 'Auto-Save: OFF';
-                autoSaveToggle.style.backgroundColor = '#888';
-            }
+        // Set up typing detection for smart auto-save
+        function setupTypingDetection() {
+            editor.addEventListener('keydown', () => {
+                // User is typing, reset the timer
+                clearTimeout(typingTimer);
+                
+                if (autoSaveEnabled) {
+                    // Set timer to save after user stops typing
+                    typingTimer = setTimeout(() => {
+                        if (isDocumentEdited) {
+                            saveDocument(true);
+                        }
+                    }, typingDelay);
+                }
+            });
         }
 
         // Toggle auto-save on/off
         function toggleAutoSave() {
             autoSaveEnabled = !autoSaveEnabled;
-            setupAutoSave();
+            if (autoSaveEnabled) {
+                autoSaveToggle.textContent = 'Auto-Save: ON';
+                autoSaveToggle.style.backgroundColor = '#4CAF50';
+                setupTypingDetection();
+            } else {
+                autoSaveToggle.textContent = 'Auto-Save: OFF';
+                autoSaveToggle.style.backgroundColor = '#888';
+                clearTimeout(typingTimer);
+            }
         }
 
         // Save document function
