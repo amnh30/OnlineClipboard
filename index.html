@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Mode Text Editor with Smart Auto-Save</title>
+    <title>Dark Mode Text Editor with RTL Support</title>
     <style>
         * {
             margin: 0;
@@ -61,6 +61,12 @@
             color: #fff;
             font-size: 16px;
             resize: vertical;
+            transition: text-align 0.3s;
+        }
+
+        #editor.rtl {
+            text-align: right;
+            direction: rtl;
         }
 
         .status {
@@ -140,6 +146,7 @@
                 <button onclick="saveDocument()">Save</button>
                 <button onclick="clearEditor()">Clear</button>
                 <button onclick="toggleAutoSave()" id="autoSaveToggle">Auto-Save: ON</button>
+                <button onclick="toggleDirection()" id="directionToggle">LTR</button>
             </div>
             <textarea id="editor" placeholder="Start typing here..."></textarea>
             <div class="status" id="status">Ready</div>
@@ -158,11 +165,44 @@
         const editor = document.getElementById('editor');
         const status = document.getElementById('status');
         const autoSaveToggle = document.getElementById('autoSaveToggle');
+        const directionToggle = document.getElementById('directionToggle');
         
         let isDocumentEdited = false;
         let autoSaveEnabled = true;
         let typingTimer;
-        const typingDelay = 10000; // 4 seconds after typing stops
+        const typingDelay = 4000; // 4 seconds after typing stops
+        let isRTL = false;
+
+        // Arabic character range detection
+        function containsArabic(text) {
+            const arabicRegex = /[\u0600-\u06FF]/;
+            return arabicRegex.test(text);
+        }
+
+        // Set text direction based on content
+        function updateTextDirection() {
+            if (containsArabic(editor.value)) {
+                editor.classList.add('rtl');
+                directionToggle.textContent = 'RTL';
+                isRTL = true;
+            } else {
+                editor.classList.remove('rtl');
+                directionToggle.textContent = 'LTR';
+                isRTL = false;
+            }
+        }
+
+        // Toggle text direction manually
+        function toggleDirection() {
+            isRTL = !isRTL;
+            if (isRTL) {
+                editor.classList.add('rtl');
+                directionToggle.textContent = 'RTL';
+            } else {
+                editor.classList.remove('rtl');
+                directionToggle.textContent = 'LTR';
+            }
+        }
 
         // Initialize the editor
         function initEditor() {
@@ -172,6 +212,7 @@
                 editor.value = savedContent;
                 status.textContent = 'Document loaded from local storage';
                 status.className = 'status saved';
+                updateTextDirection();
             }
 
             // Display history
@@ -274,6 +315,7 @@
                 status.textContent = `Loaded version from ${history[index].timestamp}`;
                 status.className = 'status saved';
                 isDocumentEdited = true;
+                updateTextDirection();
             }
         }
 
@@ -285,6 +327,7 @@
                 status.textContent = 'Editor cleared';
                 status.className = 'status';
                 isDocumentEdited = false;
+                updateTextDirection();
             }
         }
 
@@ -305,6 +348,7 @@
                 status.textContent = 'Unsaved changes';
                 status.className = 'status unsaved';
             }
+            updateTextDirection();
         });
 
         // Warn about unsaved changes
