@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Mode Text Editor</title>
+    <title>Dark Mode Text Editor with Auto-Save</title>
     <style>
         * {
             margin: 0;
@@ -66,7 +66,25 @@
         .status {
             margin-top: 10px;
             font-size: 14px;
-            color: #888;
+            transition: color 0.3s;
+        }
+
+        .status.unsaved {
+            color: #ff4444;
+        }
+
+        .status.saved {
+            color: #4CAF50;
+        }
+
+        .auto-saving {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
 
         .history-container {
@@ -121,9 +139,10 @@
             <div class="toolbar">
                 <button onclick="saveDocument()">Save</button>
                 <button onclick="clearEditor()">Clear</button>
+                <button onclick="toggleAutoSave()" id="autoSaveToggle">Auto-Save: ON</button>
             </div>
             <textarea id="editor" placeholder="Start typing here..."></textarea>
-            <div class="status" id="status"></div>
+            <div class="status" id="status">Ready</div>
         </div>
 
         <div class="history-container">
@@ -138,14 +157,56 @@
     <script>
         const editor = document.getElementById('editor');
         const status = document.getElementById('status');
+        const autoSaveToggle = document.getElementById('autoSaveToggle');
         
-        // Load saved content
-        const savedContent = localStorage.getItem('currentDocument');
-        if (savedContent) {
-            editor.value = savedContent;
+        let autoSaveInterval = 5000; // 5 seconds
+        let isDocumentEdited = false;
+        let autoSaveEnabled = true;
+        let saveTimer;
+
+        // Initialize the editor
+        function initEditor() {
+            // Load saved content
+            const savedContent = localStorage.getItem('currentDocument');
+            if (savedContent) {
+                editor.value = savedContent;
+                status.textContent = 'Document loaded from local storage';
+                status.className = 'status saved';
+            }
+
+            // Set up auto-save
+            setupAutoSave();
+            
+            // Display history
+            displayHistory();
         }
 
-        function saveDocument() {
+        // Set up auto-save functionality
+        function setupAutoSave() {
+            if (saveTimer) clearInterval(saveTimer);
+            
+            if (autoSaveEnabled) {
+                saveTimer = setInterval(() => {
+                    if (isDocumentEdited) {
+                        saveDocument(true);
+                    }
+                }, autoSaveInterval);
+                autoSaveToggle.textContent = 'Auto-Save: ON';
+                autoSaveToggle.style.backgroundColor = '#4CAF50';
+            } else {
+                autoSaveToggle.textContent = 'Auto-Save: OFF';
+                autoSaveToggle.style.backgroundColor = '#888';
+            }
+        }
+
+        // Toggle auto-save on/off
+        function toggleAutoSave() {
+            autoSaveEnabled = !autoSaveEnabled;
+            setupAutoSave();
+        }
+
+        // Save document function
+        function saveDocument(isAutoSave = false) {
             const content = editor.value;
             const timestamp = new Date().toLocaleString();
             
@@ -153,25 +214,39 @@
             localStorage.setItem('currentDocument', content);
             
             // Update status
-            status.textContent = `Last saved: ${timestamp}`;
-            
-            // Add to history
-            let history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
-            history.unshift({
-                content: content,
-                timestamp: timestamp,
-                preview: content.substring(0, 50)
-            });
-            
-            // Keep only last 10 versions
-            if (history.length > 10) {
-                history = history.slice(0, 10);
+            if (isAutoSave) {
+                status.innerHTML = '<span class="auto-saving">Auto-saved at ' + timestamp + '</span>';
+                setTimeout(() => {
+                    status.textContent = 'All changes saved';
+                    status.className = 'status saved';
+                }, 2000);
+            } else {
+                status.textContent = 'Saved at ' + timestamp;
+                status.className = 'status saved';
             }
-            
-            localStorage.setItem('documentHistory', JSON.stringify(history));
-            displayHistory();
+
+            // Add to history only if there are changes
+            let history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
+            if (history.length === 0 || history[0].content !== content) {
+                history.unshift({
+                    content: content,
+                    timestamp: timestamp,
+                    preview: content.substring(0, 50)
+                });
+                
+                // Keep only last 10 versions
+                if (history.length > 10) {
+                    history = history.slice(0, 10);
+                }
+                
+                localStorage.setItem('documentHistory', JSON.stringify(history));
+                displayHistory();
+            }
+
+            isDocumentEdited = false;
         }
 
+        // Display version history
         function displayHistory() {
             const historyList = document.getElementById('historyList');
             const history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
@@ -184,34 +259,57 @@
             `).join('');
         }
 
+        // Load a version from history
         function loadVersion(index) {
             const history = JSON.parse(localStorage.getItem('documentHistory') || '[]');
             if (history[index]) {
                 editor.value = history[index].content;
                 status.textContent = `Loaded version from ${history[index].timestamp}`;
+                status.className = 'status saved';
+                isDocumentEdited = true;
             }
         }
 
+        // Clear the editor
         function clearEditor() {
-            editor.value = '';
-            localStorage.removeItem('currentDocument');
-            status.textContent = 'Editor cleared';
+            if (editor.value.trim() === '' || confirm('Are you sure you want to clear the editor?')) {
+                editor.value = '';
+                localStorage.removeItem('currentDocument');
+                status.textContent = 'Editor cleared';
+                status.className = 'status';
+                isDocumentEdited = false;
+            }
         }
 
+        // Delete version history
         function deleteHistory() {
-            localStorage.removeItem('documentHistory');
-            displayHistory();
-            status.textContent = 'History cleared';
+            if (confirm('Are you sure you want to delete all version history?')) {
+                localStorage.removeItem('documentHistory');
+                displayHistory();
+                status.textContent = 'History cleared';
+                status.className = 'status';
+            }
         }
 
-        // Auto-save every 30 seconds
-        setInterval(saveDocument, 30000);
+        // Track document changes
+        editor.addEventListener('input', () => {
+            if (!isDocumentEdited) {
+                isDocumentEdited = true;
+                status.textContent = 'Unsaved changes';
+                status.className = 'status unsaved';
+            }
+        });
 
-        // Initial setup
-        displayHistory();
-        if (savedContent) {
-            status.textContent = 'Document loaded from local storage';
-        }
+        // Warn about unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (isDocumentEdited) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        // Initialize the editor when page loads
+        window.addEventListener('DOMContentLoaded', initEditor);
     </script>
 </body>
 </html>
